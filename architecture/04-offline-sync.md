@@ -1,3 +1,6 @@
-# Offline-First-Synchronisation
+# Offline-First Synchronisation
 
-Planypet verwendet Supabase (PostgreSQL, RLS, Auth, Storage) und PowerSync für Offline-First. Lokale SQLite-Datenbank. Sync Streams für alle Tabellen. upload_queue für Offline-Medien.
+- Supabase: PostgreSQL mit Row Level Security (RLS), Auth (E-Mail, Google, Apple), Storage für Fotos/Dokumente
+- PowerSync: Lokale SQLite-Datenbank, Sync Streams für alle Tabellen (pets, feeding_schedules, inventory_items, walk_sessions, tasks, health_records)
+- Offline-Upload: upload_queue-Tabelle, automatischer Upload bei Wiederverbindung
+- Familien-Kontext: Alle Daten einer Family zugeordnet, Nutzer kann Mitglied mehrerer Familien sein

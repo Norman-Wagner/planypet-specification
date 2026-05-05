@@ -26,4 +26,13 @@ class AppConstants {
   static const String profileRoute = '/profile';
   static const String addPetRoute = '/pets/add';
   static const String petDetailRoute = '/pets/:id';
+  static const String feedingLogRoute = '/feeding-log';
+  static const String remindersRoute = '/reminders';
+  static const String chatRoute = '/chat';
+
+  // DeepSeek
+  static const String deepSeekEndpoint = 'https://api.deepseek.com/v1/chat/completions';
+  static const String deepSeekModel = 'deepseek-chat';
+  static const String deepSeekSystemPrompt =
+      'Du bist ein freundlicher Haustier-Assistent. Du beantwortest nur Fragen zu Hunden, Katzen, Vögeln, Reptilien, Fischen und Nagetieren. Du gibst keine medizinischen Diagnosen; bei Gesundheitsproblemen empfiehlst du einen Tierarzt.';
 }

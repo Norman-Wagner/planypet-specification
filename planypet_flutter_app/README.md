@@ -7,11 +7,15 @@ Smart Pet Management App — Flutter Frontend
 - **Supabase** — Backend & Auth
 - **Riverpod** — State Management
 - **GoRouter** — Navigation
-- **Hive** — Offline Storage
+- **Hive** — Offline Cache (Pets)
+- **sqflite** — Offline Sync Queue (Fütterungs-Log, Reminder)
+- **DeepSeek** — KI-Haustier-Assistent
 
 ## Setup
 
-1. Copy `.env.example` to `.env` and fill in your Supabase credentials
+1. Copy `.env.example` to `.env` and fill in:
+   - `SUPABASE_ANON_KEY` (Supabase Project)
+   - `DEEPSEEK_API_KEY` (https://platform.deepseek.com)
 2. Run `flutter pub get`
 3. Run `flutter pub run build_runner build --delete-conflicting-outputs`
 4. Run `flutter run`

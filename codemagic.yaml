@@ -1,0 +1,43 @@
+workflows:
+  ios-testflight:
+    name: iOS TestFlight
+    max_build_duration: 60
+    working_directory: planypet_flutter_app
+
+    environment:
+      flutter: stable
+      xcode: latest
+      cocoapods: default
+      groups:
+        - planypet_secrets   # Codemagic → Teams → Global variables
+      vars:
+        BUNDLE_ID: com.wagnerconnect.planypet
+      ios_signing:
+        distribution_type: developer
+        bundle_identifier: com.wagnerconnect.planypet
+
+    scripts:
+      - name: .env erstellen
+        script: |
+          cat > .env << EOF
+          SUPABASE_URL=$SUPABASE_URL
+          SUPABASE_ANON_KEY=$SUPABASE_ANON_KEY
+          DEEPSEEK_API_KEY=$DEEPSEEK_API_KEY
+          EOF
+
+      - name: Flutter Dependencies
+        script: flutter pub get
+
+      - name: CocoaPods
+        script: find . -name "Podfile" -execdir pod install \;
+
+      - name: Build iOS
+        script: |
+          flutter build ipa \
+            --release \
+            --export-options-plist=/Users/builder/export_options.plist
+
+    artifacts:
+      - build/ios/ipa/*.ipa
+      - /tmp/xcodebuild_logs/*.log
+      - flutter_drive.log

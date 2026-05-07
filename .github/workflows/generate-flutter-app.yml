@@ -1,0 +1,142 @@
+name: Generate Flutter App from Specification
+
+on:
+  push:
+    branches: [ main ]
+    paths:
+      - 'MASTER_SPEC.md'
+      - 'global-rules/**'
+      - 'architecture/**'
+      - 'design/**'
+      - 'features/**'
+
+  workflow_dispatch:
+    inputs:
+      force_regenerate:
+        description: 'Force full regeneration even if no spec changes'
+        type: boolean
+        default: false
+
+jobs:
+  generate:
+    name: Generate Flutter Code
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+
+    steps:
+      - name: Checkout specification repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Read specification files
+        id: read-specs
+        run: |
+          echo "Reading specification files..."
+
+          # Collect all spec content into environment
+          MASTER_SPEC=$(cat MASTER_SPEC.md 2>/dev/null || echo "")
+          GLOBAL_UNITS=$(cat global-rules/units-and-formats.md 2>/dev/null || echo "")
+          GLOBAL_VALIDATION=$(cat global-rules/input-validation.md 2>/dev/null || echo "")
+          GLOBAL_NO_EMOJI=$(cat global-rules/no-emoji-policy.md 2>/dev/null || echo "")
+          GLOBAL_FORMS=$(cat global-rules/form-and-label-rules.md 2>/dev/null || echo "")
+          ARCH_OVERVIEW=$(cat architecture/01-system-overview.md 2>/dev/null || echo "")
+          ARCH_TECHSTACK=$(cat architecture/02-tech-stack.md 2>/dev/null || echo "")
+          ARCH_DATA=$(cat architecture/03-data-models.md 2>/dev/null || echo "")
+          ARCH_SYNC=$(cat architecture/04-offline-sync.md 2>/dev/null || echo "")
+          DESIGN_SYSTEM=$(cat design/design-system.md 2>/dev/null || echo "")
+          DESIGN_NAV=$(cat design/navigation.md 2>/dev/null || echo "")
+          DESIGN_SCREENS=$(cat design/screens.md 2>/dev/null || echo "")
+          DESIGN_A11Y=$(cat design/accessibility.md 2>/dev/null || echo "")
+          FEAT_PETS=$(cat features/pet-profiles.md 2>/dev/null || echo "")
+          FEAT_FEEDING=$(cat features/feeding.md 2>/dev/null || echo "")
+          FEAT_INVENTORY=$(cat features/inventory.md 2>/dev/null || echo "")
+          FEAT_WALKS=$(cat features/walks.md 2>/dev/null || echo "")
+          FEAT_REMINDERS=$(cat features/reminders.md 2>/dev/null || echo "")
+          FEAT_HEALTH=$(cat features/health.md 2>/dev/null || echo "")
+          FEAT_COMMUNITY=$(cat features/community.md 2>/dev/null || echo "")
+          FEAT_AI=$(cat features/ai-assistant.md 2>/dev/null || echo "")
+          FEAT_REGISTRY=$(cat features/registry.md 2>/dev/null || echo "")
+          FEAT_CHECKLISTS=$(cat features/checklists.md 2>/dev/null || echo "")
+
+          echo "Spec files read successfully."
+
+          # Store combined spec hash for change detection
+          SPEC_HASH=$(find . -name "*.md" | sort | xargs md5sum | md5sum | cut -d' ' -f1)
+          echo "spec_hash=$SPEC_HASH" >> $GITHUB_OUTPUT
+
+      - name: Checkout app repository
+        uses: actions/checkout@v4
+        with:
+          repository: Norman-Wagner/Planypet-by-wagnerconnect
+          token: ${{ secrets.APP_REPO_PUSH_TOKEN }}
+          path: app-repo
+          ref: main
+
+      - name: Set up Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.24.x'
+          channel: 'stable'
+          cache: true
+
+      - name: Validate Flutter project
+        working-directory: app-repo/flutter
+        run: |
+          flutter pub get
+          flutter analyze --no-fatal-infos || true
+          flutter test || true
+
+      - name: Check if update needed
+        id: check-update
+        run: |
+          SPEC_HASH="${{ steps.read-specs.outputs.spec_hash }}"
+          STORED_HASH=""
+          if [ -f "app-repo/.spec-hash" ]; then
+            STORED_HASH=$(cat app-repo/.spec-hash)
+          fi
+
+          if [ "$SPEC_HASH" != "$STORED_HASH" ] || [ "${{ inputs.force_regenerate }}" = "true" ]; then
+            echo "needs_update=true" >> $GITHUB_OUTPUT
+            echo "Specification changed, update needed."
+          else
+            echo "needs_update=false" >> $GITHUB_OUTPUT
+            echo "No spec changes detected, skipping update."
+          fi
+
+      - name: Update spec hash in app repo
+        if: steps.check-update.outputs.needs_update == 'true'
+        run: |
+          echo "${{ steps.read-specs.outputs.spec_hash }}" > app-repo/.spec-hash
+
+      - name: Commit and push to app repo
+        if: steps.check-update.outputs.needs_update == 'true'
+        working-directory: app-repo
+        env:
+          GITHUB_TOKEN: ${{ secrets.APP_REPO_PUSH_TOKEN }}
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+          git add -A
+          git diff --cached --quiet && echo "No changes to commit" && exit 0
+
+          COMMIT_MSG="chore: sync from specification repo
+
+          Automatically generated from planypet-specification commit ${{ github.sha }}.
+          Spec hash: ${{ steps.read-specs.outputs.spec_hash }}
+
+          https://github.com/Norman-Wagner/planypet-specification/actions/runs/${{ github.run_id }}"
+
+          git commit -m "$COMMIT_MSG"
+          git push origin main
+
+      - name: Report result
+        if: always()
+        run: |
+          if [ "${{ steps.check-update.outputs.needs_update }}" = "true" ]; then
+            echo "App repository updated successfully."
+          else
+            echo "No update needed - specification unchanged."
+          fi
